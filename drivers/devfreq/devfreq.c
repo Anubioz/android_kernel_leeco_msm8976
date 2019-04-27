@@ -409,7 +409,7 @@ static int devfreq_notifier_call(struct notifier_block *nb, unsigned long type,
  * @devfreq:	the devfreq struct
  * @skip:	skip calling device_unregister().
  */
-static void _remove_devfreq(struct devfreq *devfreq)
+static void _remove_devfreq(struct devfreq *devfreq, bool skip)
 {
 	mutex_lock(&devfreq_list_lock);
 	if (IS_ERR(find_device_devfreq(devfreq->dev.parent))) {
@@ -427,6 +427,11 @@ static void _remove_devfreq(struct devfreq *devfreq)
 	if (devfreq->profile->exit)
 		devfreq->profile->exit(devfreq->dev.parent);
 
+	if (!skip && get_device(&devfreq->dev)) {
+		device_unregister(&devfreq->dev);
+		put_device(&devfreq->dev);
+	}
+
 	mutex_destroy(&devfreq->lock);
 	kfree(devfreq);
 }
@@ -436,12 +441,14 @@ static void _remove_devfreq(struct devfreq *devfreq)
  * @dev:	the devfreq device
  *
  * This calls _remove_devfreq() if _remove_devfreq() is not called.
+ * Note that devfreq_dev_release() could be called by _remove_devfreq() as
+ * well as by others unregistering the device.
  */
 static void devfreq_dev_release(struct device *dev)
 {
 	struct devfreq *devfreq = to_devfreq(dev);
 
-	_remove_devfreq(devfreq);
+	_remove_devfreq(devfreq, true);
 }
 
 /**
@@ -552,8 +559,7 @@ int devfreq_remove_device(struct devfreq *devfreq)
 	if (!devfreq)
 		return -EINVAL;
 
-	device_unregister(&devfreq->dev);
-	put_device(&devfreq->dev);
+	_remove_devfreq(devfreq, false);
 
 	return 0;
 }
@@ -977,6 +983,32 @@ static ssize_t show_trans_table(struct device *dev, struct device_attribute *att
 	return len;
 }
 
+static ssize_t show_time_in_state(struct device *dev, struct device_attribute *attr,
+				char *buf)
+{
+	struct devfreq *devfreq = to_devfreq(dev);
+	ssize_t len;
+	int i, err;
+	unsigned int max_state = devfreq->profile->max_state;
+
+	err = devfreq_update_status(devfreq, devfreq->previous_freq);
+	if (err)
+		return 0;
+
+	len = 0;
+	
+	for (i = 0; i < max_state; i++) {
+		len += sprintf(buf + len, "%u ",
+				devfreq->profile->freq_table[i]);
+		len += sprintf(buf + len, "%u ",
+			jiffies_to_msecs(devfreq->time_in_state[i]));
+	}
+
+	len += sprintf(buf + len, "\n");
+	
+	return len;
+}
+
 static struct device_attribute devfreq_attrs[] = {
 	__ATTR(governor, S_IRUGO | S_IWUSR, show_governor, store_governor),
 	__ATTR(available_governors, S_IRUGO, show_available_governors, NULL),
@@ -988,6 +1020,7 @@ static struct device_attribute devfreq_attrs[] = {
 	__ATTR(min_freq, S_IRUGO | S_IWUSR, show_min_freq, store_min_freq),
 	__ATTR(max_freq, S_IRUGO | S_IWUSR, show_max_freq, store_max_freq),
 	__ATTR(trans_stat, S_IRUGO, show_trans_table, NULL),
+	__ATTR(time_in_state, S_IRUGO, show_time_in_state, NULL),
 	{ },
 };
 
