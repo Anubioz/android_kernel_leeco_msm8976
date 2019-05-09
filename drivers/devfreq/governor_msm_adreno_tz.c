@@ -176,16 +176,6 @@ static int tz_init(struct devfreq_msm_adreno_tz_data *priv,
 	return ret;
 }
 
-#ifdef CONFIG_ADRENO_IDLER
-extern int adreno_idler(struct devfreq_dev_status stats, struct devfreq *devfreq,
-		 unsigned long *freq);
-#endif
-#ifdef CONFIG_SIMPLE_GPU_ALGORITHM
-extern int simple_gpu_active;
-extern int simple_gpu_algorithm(int level,
-				struct devfreq_msm_adreno_tz_data *priv);
-#endif
-
 static int tz_get_target_freq(struct devfreq *devfreq, unsigned long *freq,
 				u32 *flag)
 {
@@ -203,21 +193,7 @@ static int tz_get_target_freq(struct devfreq *devfreq, unsigned long *freq,
 		return result;
 	}
 
-	/* Prevent overflow */
-	if (stats.busy_time >= (1 << 24) || stats.total_time >= (1 << 24)) {
-		stats.busy_time >>= 7;
-		stats.total_time >>= 7;
-	}
-
 	*freq = stats.current_frequency;
-
-#ifdef CONFIG_ADRENO_IDLER
-	if (adreno_idler(stats, devfreq, freq)) {
-		/* adreno_idler has asked to bail out now */
-		return 0;
-	}
-#endif
-
 	priv->bin.total_time += stats.total_time;
 	priv->bin.busy_time += stats.busy_time;
 
@@ -264,32 +240,9 @@ static int tz_get_target_freq(struct devfreq *devfreq, unsigned long *freq,
 		scm_data[2] = priv->bin.busy_time;
 		__secure_tz_update_entry3(scm_data, sizeof(scm_data),
 					&val, sizeof(val), priv->is_64);
-#ifdef CONFIG_SIMPLE_GPU_ALGORITHM
-		if (simple_gpu_active != 0)
-			val = simple_gpu_algorithm(level, priv);
-#else
-		val = __secure_tz_entry3(TZ_UPDATE_ID,
-				level,
-				priv->bin.total_time,
-				priv->bin.busy_time);
-#endif
 	}
-
-	// AP: Tweak 27 MHz frequency to be used a bit more
-	if ((val == 0) && (level == 5) &&	// (5 = 180 MHz step)
-		((priv->bin.busy_time * 100 / priv->bin.total_time) < 98))
-		val = 1;
-
 	priv->bin.total_time = 0;
 	priv->bin.busy_time = 0;
-
-	// AP: Tweak not to peak up when we come from 27 MHz and need to ramp up
-	if ((val < -1) && (level == 6))
-		val = -1;
-
-	// AP: In general we do not ramp up more than 2 steps at once
-	if (val < -2)
-		val = -2;
 
 	/*
 	 * If the decision is to move to a different level, make sure the GPU
@@ -471,18 +424,12 @@ static int tz_handler(struct devfreq *devfreq, unsigned int event, void *data)
 
 static void _do_partner_event(struct work_struct *work, unsigned int event)
 {
-        struct devfreq *bus_devfreq = partner_gpu_profile->bus_devfreq;
+	struct devfreq *bus_devfreq = partner_gpu_profile->bus_devfreq;
 
-        if (bus_devfreq->governor && bus_devfreq->governor->event_handler)
-                bus_devfreq->governor->event_handler(bus_devfreq, event, NULL);
+	if (bus_devfreq->governor && bus_devfreq->governor->event_handler)
+		bus_devfreq->governor->event_handler(bus_devfreq, event, NULL);
 }
-/* old one
-static void _do_partner_event(struct work_struct *work, unsigned int event)
-{
-	partner_gpu_profile->bus_devfreq->governor->event_handler
-			(partner_gpu_profile->bus_devfreq, event, NULL);
-}
-*/
+
 static void do_partner_start_event(struct work_struct *work)
 {
 	_do_partner_event(work, DEVFREQ_GOV_START);
