@@ -490,7 +490,7 @@ static void devmgr_mitigation_callback(struct device_clnt_data *clnt,
 					union device_request *req,
 					void *data)
 {
-	uint32_t step1_rel = (long)data;
+	uint32_t step1_rel = (int)data;
 	int ret = 0;
 
 	if (!clnt) {

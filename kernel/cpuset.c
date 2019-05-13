@@ -81,37 +81,19 @@ struct cpuset {
 	struct cgroup_subsys_state css;
 
 	unsigned long flags;		/* "unsigned long" so bitops work */
+	cpumask_var_t cpus_allowed;	/* CPUs allowed to tasks in cpuset */
+	nodemask_t mems_allowed;	/* Memory Nodes allowed to tasks */
 
 	/*
-         * On default hierarchy:
+	 * This is old Memory Nodes tasks took on.
 	 *
-         * The user-configured masks can only be changed by writing to
-         * cpuset.cpus and cpuset.mems, and won't be limited by the
-         * parent masks.
-         *
-         * The effective masks is the real masks that apply to the tasks
-         * in the cpuset. They may be changed if the configured masks are
-         * changed or hotplug happens.
-         *
-         * effective_mask == configured_mask & parent's effective_mask,
-         * and if it ends up empty, it will inherit the parent's mask.
-         *
-         *
-         * On legacy hierachy:
-         *
-         * The user-configured masks are always the same with effective masks.
-         */
-
-	/* user-configured CPUs and Memory Nodes allow to tasks */
-        cpumask_var_t cpus_allowed;
-        cpumask_var_t cpus_requested;
-        nodemask_t mems_allowed;
-
-        /* effective CPUs and Memory Nodes allow to tasks */
-        cpumask_var_t effective_cpus;
-        nodemask_t effective_mems;
-
-
+	 * - top_cpuset.old_mems_allowed is initialized to mems_allowed.
+	 * - A new cpuset's old_mems_allowed is initialized when some
+	 *   task is moved into it.
+	 * - old_mems_allowed is used in cpuset_migrate_mm() when we change
+	 *   cpuset.mems_allowed and have tasks' nodemask updated, and
+	 *   then old_mems_allowed is updated to mems_allowed.
+	 */
 	nodemask_t old_mems_allowed;
 
 	struct fmeter fmeter;		/* memory_pressure filter */

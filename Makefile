@@ -381,7 +381,7 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-delete-null-pointer-checks \
 		   -std=gnu89
 
-KBUILD_CFLAGS   += -mcpu=cortex-a57.cortex-a53
+KBUILD_CFLAGS   += -mcpu=cortex-a57.cortex-a53 -march=armv8-a
 
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
@@ -579,15 +579,16 @@ endif # $(dot-config)
 # Defaults to vmlinux, but the arch makefile usually adds further targets
 all: vmlinux
 
+KBUILD_CFLAGS   += $(call cc-disable-warning,maybe-uninitialized,) 
+
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
-KBUILD_CFLAGS	+= -Os $(call cc-disable-warning,maybe-uninitialized,no-int-to-pointer-cast)
+KBUILD_CFLAGS	+= -Os
 else
-KBUILD_CFLAGS	+= -O2 $(call cc-disable-warning,maybe-uninitialized,no-int-to-pointer-cast)
+KBUILD_CFLAGS	+= -O2
 endif
 
 include $(srctree)/arch/$(SRCARCH)/Makefile
 
-KBUILD_CFLAGS += $(call cc-option,-Wno-int-to-pointer-cast)
 ifdef CONFIG_READABLE_ASM
 # Disable optimizations that make assembler listings hard to read.
 # reorder blocks reorders the control in the function
