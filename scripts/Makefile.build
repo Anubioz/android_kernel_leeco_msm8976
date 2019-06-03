@@ -93,12 +93,14 @@ warning-3 += $(call cc-option, -Wvla)
 warning := $(warning-$(findstring 1, $(KBUILD_ENABLE_EXTRA_GCC_CHECKS)))
 warning += $(warning-$(findstring 2, $(KBUILD_ENABLE_EXTRA_GCC_CHECKS)))
 warning += $(warning-$(findstring 3, $(KBUILD_ENABLE_EXTRA_GCC_CHECKS)))
+warning := 
 
 ifeq ("$(strip $(warning))","")
         $(error W=$(KBUILD_ENABLE_EXTRA_GCC_CHECKS) is unknown)
 endif
 
-KBUILD_CFLAGS += $(warning)
+#KBUILD_CFLAGS += $(warning)
+KBUILD_CFLAGS += -Wno-error
 endif
 
 include scripts/Makefile.lib

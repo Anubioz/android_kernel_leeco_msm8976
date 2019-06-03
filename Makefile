@@ -244,6 +244,8 @@ HOSTCXX      = g++
 HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer -std=gnu89
 HOSTCXXFLAGS = -O2
 
+HOSTCFLAGS = -Wno-error -O2 -fomit-frame-pointer -std=gnu89
+
 # Decide whether to build built-in, modular, or both.
 # Normally, just do built-in.
 
@@ -379,9 +381,12 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
 		   -fno-delete-null-pointer-checks \
+                   -Wno-error -Wno-stringop-overflow \
 		   -std=gnu89
 
-KBUILD_CFLAGS   += -mcpu=cortex-a57.cortex-a53 -march=armv8-a
+#KBUILD_CFLAGS   += -mcpu=cortex-a57.cortex-a53 -march=armv8-a
+
+KBUILD_CFLAGS   := -Wno-error -std=gnu89 -fno-strict-aliasing -fno-common -march=armv8-a -mcpu=cortex-a57.cortex-a53 -O2
 
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
