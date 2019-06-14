@@ -469,7 +469,7 @@
 				< 1190400  4101 >,	/* SVS+  */
 				< 1382400  5712 >,	/* NOM   */
 				< 1612800  6152 >,	/* TURBO */
-				< 1958400  7104 >;
+				< 1804800  7104 >;
 		};
 
 		mincpubw-cpufreq {
@@ -497,7 +497,7 @@
 				< 1190400 403200 >,
 				< 1382400 441600 >,
 				< 1612800 556800 >,
-				< 1958400 614400 >;
+				< 1804800 614400 >;
 		};
 	};
 
@@ -536,8 +536,7 @@
 			< 1382400 >,
 			< 1612800 >,
 			< 1747200 >,
-			< 1804800 >,
-			< 1958400 >;
+			< 1804800 >;
 	};
 
 	timer {
@@ -1300,6 +1299,31 @@
 		qcom,pm-qos-latency = <59 1001 12701>;
 	};
 
+
+        fsusb: qcom,ehci-host@79c0000 {
+                compatible = "qcom,ehci-host";
+                reg = <0x79c0000 0x400>;
+                interrupts = <0 132 0>;
+                status = "disabled";
+
+                clocks = <&clock_gcc clk_gcc_usb_fs_ahb_clk>,
+                         <&clock_gcc clk_gcc_usb_fs_system_clk>,
+                         <&clock_gcc clk_gcc_usb_fs_ic_clk>;
+                        clock-names = "iface_clk", "core_clk", "alt_core_clk";
+
+                pinctrl-names = "uicc_active", "uicc_sleep";
+                pinctrl-0 = <&uicc_active>;
+                pinctrl-1 = <&uicc_sleep>;
+                HSUSB_3p3-supply = <&pm8950_l14>;
+
+                qcom,msm-bus,name = "uicc";
+                qcom,msm-bus,num-cases = <2>;
+                qcom,msm-bus,num-paths = <1>;
+                qcom,msm-bus,vectors-KBps =
+                                <93 512 0 0>,
+                                <93 512 12000 192000>;
+        };
+
 	slim_msm: slim@c140000{
 		cell-index = <1>;
 		compatible = "qcom,slim-ngd";
@@ -1323,6 +1347,7 @@
 		qcom,ignore-core-reset-ack;
 		qcom,disable-clk-gating;
 		qcom,usb-bam-max-mbps-highspeed = <400>;
+                qcom,enable-hsusb-bam-on-boot;
 
 		qcom,pipe0 {
 			label = "hsusb-ipa-out-0";

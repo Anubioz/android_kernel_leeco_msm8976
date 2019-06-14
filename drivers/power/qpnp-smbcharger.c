@@ -513,6 +513,10 @@ module_param_named(
 			pr_debug_ratelimited(fmt, ##__VA_ARGS__);	\
 	} while (0)
 
+#ifdef CONFIG_CHARGE_LEVEL
+        struct smbchg_chip *chg_cache;
+#endif
+
 static int smbchg_read(struct smbchg_chip *chip, u8 *val,
 			u16 addr, int count)
 {
@@ -8587,6 +8591,37 @@ static void smbchg_manual_current_control_work(struct work_struct *work)
 		}
 	}
 }
+
+
+#ifdef CONFIG_CHARGE_LEVEL
+int get_bk_current_now (void)
+{
+        int curr;
+
+        // get current and convert to mA (positive = charging, negative = discharging)
+        curr = (get_prop_batt_current_now(chg_cache) / 1000) * -1;
+
+        // we are only interested in charging value, set it to 0 otherwise
+        if (curr < 0)
+                curr = 0;
+
+        return curr;
+}
+
+int get_bk_charger_type (void)
+{
+        enum power_supply_type usb_supply_type;
+        char *usb_type_name = "null";
+
+        // check if any type of charger is connected at all
+        if (!(chg_cache->dc_present) && !(chg_cache->usb_present))
+                return POWER_SUPPLY_TYPE_UNKNOWN;
+
+        // read charger type and return back
+        read_usb_type(chg_cache, &usb_type_name, &usb_supply_type);
+        return usb_supply_type;
+}
+#endif
 
 static int smbchg_probe(struct spmi_device *spmi)
 {

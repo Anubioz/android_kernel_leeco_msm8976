@@ -1288,23 +1288,23 @@ static struct rcg_clk vsync_clk_src = {
 };
 
 static struct clk_freq_tbl ftbl_gfx3d_clk_src[] = {
-	F(  19200000,             xo,    1,    0,     0),
-	F(  50000000,          gpll0,   16,    0,     0),
-	F(  80000000,          gpll0,   10,    0,     0),
-	F( 100000000,          gpll0,    8,    0,     0),
-	F( 133333333,          gpll0,    6,    0,     0),
-	F( 160000000,          gpll0,    5,    0,     0),
-	F( 200000000,          gpll0,    4,    0,     0),
-	F( 228571429,          gpll0,  3.5,    0,     0),
-	F( 240000000,    gpll6_gfx3d,  4.5,    0,     0),
-	F( 266666667,          gpll0,    3,    0,     0),
-	F( 300000000,    gpll4_gfx3d,    4,    0,     0),
-	F( 366670000,          gpll3,    3,    0,     0),
-	F( 400000000,          gpll0,    2,    0,     0),
-	F( 432000000,    gpll6_gfx3d,  2.5,    0,     0),
-	F( 480000000,    gpll4_gfx3d,  2.5,    0,     0),
-	F( 550000000,          gpll3,    2,    0,     0),
-	F( 600000000,    gpll4_gfx3d,    2,    0,     0),
+        F(  19200000,             xo,    1,    0,     0),
+        F(  50000000,          gpll0,   16,    0,     0),
+        F(  80000000,          gpll0,   10,    0,     0),
+        F( 100000000,          gpll0,    8,    0,     0),
+        F( 133333333,          gpll0,    6,    0,     0),
+        F( 160000000,          gpll0,    5,    0,     0),
+        F( 200000000,          gpll0,    4,    0,     0),
+        F( 228571429,          gpll0,  3.5,    0,     0),
+        F( 240000000,    gpll6_gfx3d,  4.5,    0,     0),
+        F( 266666667,          gpll0,    3,    0,     0),
+        F( 300000000,    gpll4_gfx3d,    4,    0,     0),
+        F( 366670000,          gpll3,    3,    0,     0),
+        F( 400000000,          gpll0,    2,    0,     0),
+        F( 432000000,    gpll6_gfx3d,  2.5,    0,     0),
+        F( 480000000,    gpll4_gfx3d,  2.5,    0,     0),
+        F( 550000000,          gpll3,    2,    0,     0),
+        F( 621330000,    gpll2_gfx3d,  1.5,    0,     0),
 	F_END
 };
 
@@ -1325,7 +1325,6 @@ static struct clk_freq_tbl ftbl_gfx3d_clk_src_v1[] = {
 	F( 432000000,    gpll6_gfx3d,  2.5,    0,     0),
 	F( 480000000,    gpll4_gfx3d,  2.5,    0,     0),
 	F( 550000000,          gpll3,    2,    0,     0),
-	F( 600000000,    gpll4_gfx3d,    2,    0,     0),
 	F( 621330000,    gpll2_gfx3d,  1.5,    0,     0),
 	F_END
 };
@@ -2587,7 +2586,7 @@ static struct branch_clk gcc_oxili_gfx3d_clk = {
 		.parent = &gfx3d_clk_src.c,
 		VDD_DIG_FMAX_MAP5(LOWER, 300000000, LOW, 366670000,
 				NOMINAL, 432000000, NOM_PLUS, 480000000,
-				HIGH, 600000000),
+				HIGH, 621330000),
 		.ops = &clk_ops_branch,
 		CLK_INIT(gcc_oxili_gfx3d_clk.c),
 	},
@@ -2780,6 +2779,7 @@ static struct branch_clk gcc_usb_fs_ic_clk = {
 
 static struct branch_clk gcc_usb_fs_system_clk = {
 	.cbcr_reg = USB_FS_SYSTEM_CBCR,
+        .bcr_reg  = USB_FS_BCR,
 	.has_sibling = 0,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
@@ -3848,6 +3848,60 @@ static struct clk_lookup msm_clocks_gcc_gfx[] = {
 	CLK_LIST(gcc_gfx_tcu_clk),
 	CLK_LIST(gcc_gtcu_ahb_clk),
 };
+
+extern int cpr2_gfx_regulator_get_corner_voltage(struct regulator *regulator,
+               int corner);
+extern int cpr2_gfx_regulator_set_corner_voltage(struct regulator *regulator,
+               int corner, int volt);
+
+ssize_t gpu_clock_get_vdd(char *buf, ssize_t count)
+{
+       int i, uv;
+
+       if (!buf)
+               return 0;
+
+       for (i = 1; i < gfx3d_clk_src.c.num_fmax; i++) {
+               uv = cpr2_gfx_regulator_get_corner_voltage(
+                                       gfx3d_clk_src.c.vdd_class->regulator[0],
+                                       gfx3d_clk_src.c.vdd_class->vdd_uv[i]);
+               if (uv < 0)
+                       return 0;
+               count += sprintf(buf + count, "GPU_%lumhz: %d mV\n",
+                                       gfx3d_clk_src.c.fmax[i] / 1000000,
+                                       uv / 1000);
+       }
+
+       return count;
+}
+
+ssize_t gpu_clock_set_vdd(const char *buf, ssize_t count)
+{
+       int i, mv, ret;
+       char line[32];
+
+       if (!buf)
+               return -EINVAL;
+
+       for (i = 1; i < gfx3d_clk_src.c.num_fmax; i++) {
+               ret = sscanf(buf, "%d", &mv);
+               if (ret != 1)
+                       return -EINVAL;
+
+               ret = cpr2_gfx_regulator_set_corner_voltage(
+                                       gfx3d_clk_src.c.vdd_class->regulator[0],
+                                       gfx3d_clk_src.c.vdd_class->vdd_uv[i],
+                                       mv * 1000);
+        if (ret < 0)
+                       return ret;
+
+        ret = sscanf(buf, "%s", line);
+               buf += strlen(line) + 1;
+       }
+
+       return count;
+}
+
 
 static void get_gfx_version(struct platform_device *pdev, int *version)
 {

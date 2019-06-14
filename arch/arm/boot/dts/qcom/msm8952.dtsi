@@ -1096,6 +1096,7 @@
 		qcom,ignore-core-reset-ack;
 		qcom,disable-clk-gating;
 		qcom,usb-bam-max-mbps-highspeed = <400>;
+                qcom,enable-hsusb-bam-on-boot;
 
 		qcom,pipe0 {
 			label = "hsusb-ipa-out-0";
@@ -2087,6 +2088,8 @@
 	voice: qcom,msm-pcm-voice {
 		compatible = "qcom,msm-pcm-voice";
 		qcom,destroy-cvd;
+                qcom,vote-bms;
+
 	};
 
 	stub_codec: qcom,msm-stub-codec {
@@ -2349,6 +2352,13 @@
 				"iface_clk", "bus_clk";
 		qcom,ce-opp-freq = <100000000>;
 	};
+
+        cpu-pmu {
+                compatible = "arm,armv8-pmuv3";
+                qcom,irq-is-percpu;
+                interrupts = <1 7 0xff00>;
+        };
+
 };
 
 &gdsc_venus {

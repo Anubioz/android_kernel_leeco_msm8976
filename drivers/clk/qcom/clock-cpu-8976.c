@@ -141,7 +141,7 @@ static struct pll_clk a72ss_hf_pll = {
 		.vco_mode_masked = BVAL(21, 20, 1),
 	},
 	.base = &virt_bases[APCS_C1_PLL_BASE],
-	.max_rate = 2016000000,
+	.max_rate = 1843200000,
 	.min_rate = 940800000,
 	.c = {
 		.parent = &xo_a_clk.c,
@@ -356,6 +356,9 @@ static int cpu_clk_8976_set_rate(struct clk *c, unsigned long rate)
 	struct cpu_clk_8976 *cpuclk = to_cpu_clk_8976(c);
 	bool hw_low_power_ctrl = cpuclk->hw_low_power_ctrl;
 
+        // Yep, this exact function is used to set 8976 cluster clocks
+        //pr_info("clock-cpu-8976: cpu_clk_8976_set_rate: %lu \n", rate);
+
 	/*
 	 * If hardware control of the clock tree is enabled during power
 	 * collapse, setup a PM QOS request to prevent power collapse and
@@ -535,6 +538,9 @@ extern int cpr_regulator_get_corner_voltage(struct regulator *regulator,
 extern int cpr_regulator_set_corner_voltage(struct regulator *regulator,
 		int corner, int volt);
 
+extern ssize_t gpu_clock_get_vdd(char *buf, ssize_t count);
+extern ssize_t gpu_clock_set_vdd(const char *buf, ssize_t count);
+
 ssize_t cpu_clock_get_vdd(char *buf)
 {
 	ssize_t count = 0;
@@ -564,6 +570,8 @@ ssize_t cpu_clock_get_vdd(char *buf)
 					a72_clk.c.fmax[i] / 1000000,
 					uv / 1000);
 	}
+
+        count = gpu_clock_get_vdd(buf, count);
 
 	return count;
 }
@@ -607,6 +615,8 @@ ssize_t cpu_clock_set_vdd(const char *buf, size_t count)
         ret = sscanf(buf, "%s", line);
 		buf += strlen(line) + 1;
 	}
+
+        count = gpu_clock_set_vdd(buf, count);
 
 	return count;
 }
